@@ -36,29 +36,33 @@ export class ProjectService {
   /**
    * Updates project status.
    */
-  async updateStatus(
-    id: string,
-    organisationId: string,
-    status: ProjectStatus
-  ): Promise<Project> {
-    const project = await this.repository.findById(
-      id,
-      organisationId
-    );
+async updateStatus(
+  id: string,
+  organisationId: string,
+  status: ProjectStatus
+): Promise<Project> {
+  const project = await this.repository.findById(
+    id,
+    organisationId
+  );
 
-    if (!project) {
-      throw new NotFoundError("Project not found");
-    }
-
-    project.status = status;
-
-    logger.info("Project status updated", {
-      projectId: id,
-      status,
-    });
-
-    return this.repository.save(project);
+  if (!project) {
+    throw new NotFoundError("Project not found");
   }
+
+  const previousState = { ...project };
+
+  project.status = status;
+
+  const updatedProject = await this.repository.save(project);
+
+  logger.info("Project status updated", {
+    projectId: id,
+    status,
+  });
+   
+  return updatedProject;
+}
 
   /**
    * Gets projects by team.
