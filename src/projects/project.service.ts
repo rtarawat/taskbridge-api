@@ -1,47 +1,94 @@
-import { DataSource, Repository } from 'typeorm';
-import { Project } from './project.entity';
-import type { ProjectStatus } from './project.entity';
+import { DataSource } from "typeorm";
+import { Project, ProjectStatus } from "./project.entity";
+import { ProjectRepository } from "./project.repository";
+import { NotFoundError } from "../common/errors";
+import { logger } from "../common/logger";
 
 export interface CreateProjectInput {
   name: string;
   description?: string;
   teamId: string;
+  organisationId: string;
   status?: ProjectStatus;
 }
 
 export class ProjectService {
-  private readonly repository: Repository<Project>;
+  private readonly repository: ProjectRepository;
 
   constructor(private readonly dataSource: DataSource) {
-    this.repository = dataSource.getRepository(Project);
+    this.repository = new ProjectRepository(
+      dataSource.getRepository(Project)
+    );
   }
 
+  /**
+   * Creates a project.
+   */
   async create(input: CreateProjectInput): Promise<Project> {
-    const project = this.repository.create({
+    logger.info("Creating project", input);
+
+    return this.repository.create({
       ...input,
-      status: input.status ?? 'planning',
+      status: input.status ?? "planning",
+    });
+  }
+
+  /**
+   * Updates project status.
+   */
+  async updateStatus(
+    id: string,
+    organisationId: string,
+    status: ProjectStatus
+  ): Promise<Project> {
+    const project = await this.repository.findById(
+      id,
+      organisationId
+    );
+
+    if (!project) {
+      throw new NotFoundError("Project not found");
+    }
+
+    project.status = status;
+
+    logger.info("Project status updated", {
+      projectId: id,
+      status,
     });
 
     return this.repository.save(project);
   }
 
-  async updateStatus(id: string, status: ProjectStatus): Promise<Project> {
-    const project = await this.repository.findOneBy({ id });
-
-    if (!project) {
-      throw new Error(`Project with id ${id} was not found.`);
-    }
-
-    project.status = status;
-    return this.repository.save(project);
+  /**
+   * Gets projects by team.
+   */
+  async getByTeam(
+    teamId: string,
+    organisationId: string
+  ): Promise<Project[]> {
+    return this.repository.findByTeam(
+      teamId,
+      organisationId
+    );
   }
 
-  async getByTeam(teamId: string): Promise<Project[]> {
-    return this.repository.find({ where: { teamId } });
-  }
+  /**
+   * Deletes a project.
+   */
+  async delete(
+    id: string,
+    organisationId: string
+  ): Promise<boolean> {
+    const result = await this.repository.delete(
+      id,
+      organisationId
+    );
 
-  async delete(id: string): Promise<boolean> {
-    const result = await this.repository.delete(id);
+    logger.info("Project deleted", {
+      projectId: id,
+    });
+
     return (result.affected ?? 0) > 0;
   }
 }
