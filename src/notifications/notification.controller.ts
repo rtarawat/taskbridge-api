@@ -4,17 +4,19 @@ import { AuditService } from "./audit.service";
 
 export class NotificationController {
   constructor(
-    private notificationService: NotificationService,
-    private auditService: AuditService
+    private readonly notificationService: NotificationService,
+    private readonly auditService: AuditService
   ) {}
 
   async getNotifications(
     req: Request,
     res: Response
   ) {
+    const userId = String(req.params.userId);
+
     const notifications =
       await this.notificationService.getUnreadNotifications(
-        req.params.userId
+        userId
       );
 
     return res.json(notifications);
@@ -26,7 +28,7 @@ export class NotificationController {
   ) {
     const notification =
       await this.notificationService.markAsRead(
-        req.params.id
+        String(req.params.id)
       );
 
     return res.json(notification);
@@ -42,7 +44,7 @@ export class NotificationController {
 
     const audits =
       await this.auditService.getAuditHistory(
-        req.params.projectId,
+        String(req.params.projectId),
         organisationId,
         req.query.eventType as string
       );
